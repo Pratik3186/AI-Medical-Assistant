@@ -1,7 +1,8 @@
 import streamlit as st
 import requests
+from config import API_URL
 
-BACKEND_URL = "https://ai-medical-assistant-1-ut3l.onrender.com/ask/"
+BACKEND_URL = f"{API_URL}/ask/"
 
 
 def render_chat():

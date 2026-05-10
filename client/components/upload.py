@@ -1,7 +1,9 @@
 import streamlit as st
 import requests
+from config import API_URL
 
-BACKEND_URL = "https://ai-medical-assistant-1-ut3l.onrender.com/upload/"
+
+BACKEND_URL = f"{API_URL}/upload/"
 
 
 def render_uploader():
@@ -16,20 +18,39 @@ def render_uploader():
 
     if uploaded_files:
 
+        st.success(f"{len(uploaded_files)} file(s) selected")
+
         if st.button("Upload PDFs"):
 
-            files = [
-                (
-                    "files",
-                    (file.name, file, "application/pdf")
+            files = []
+
+            for file in uploaded_files:
+                files.append(
+                    (
+                        "files",
+                        (
+                            file.name,
+                            file,
+                            "application/pdf"
+                        )
+                    )
                 )
-                for file in uploaded_files
-            ]
 
-            with st.spinner("Uploading and processing PDFs..."):
-                response = requests.post(BACKEND_URL, files=files)
+            try:
 
-            if response.status_code == 200:
-                st.success("PDFs uploaded successfully ✅")
-            else:
-                st.error("Upload failed ❌")
+                with st.spinner("Uploading and processing PDFs..."):
+
+                    response = requests.post(
+                        BACKEND_URL,
+                        files=files,
+                        timeout=300
+                    )
+
+                if response.status_code == 200:
+                    st.success("PDF uploaded successfully ✅")
+
+                else:
+                    st.error(f"Upload Failed: {response.text}")
+
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
