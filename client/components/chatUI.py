@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-BACKEND_URL = "http://127.0.0.1:8000/ask/"
+BACKEND_URL = "https://ai-medical-assistant-1-ut3l.onrender.com/ask/"
 
 
 def render_chat():
@@ -34,25 +34,34 @@ def render_chat():
 
             with st.spinner("Analyzing medical documents..."):
 
-                response = requests.post(
-                    BACKEND_URL,
-                    data={"question": user_input}
-                )
+                try:
 
-                if response.status_code == 200:
-
-                    result = response.json()
-
-                    answer = result.get("response", "No response generated")
-
-                    st.markdown(answer)
-
-                    st.session_state.messages.append(
-                        {
-                            "role": "assistant",
-                            "content": answer
-                        }
+                    response = requests.post(
+                        BACKEND_URL,
+                        data={"question": user_input},
+                        timeout=300
                     )
 
-                else:
-                    st.error("Error communicating with backend ❌")
+                    if response.status_code == 200:
+
+                        result = response.json()
+
+                        answer = result.get(
+                            "response",
+                            "No response generated"
+                        )
+
+                        st.markdown(answer)
+
+                        st.session_state.messages.append(
+                            {
+                                "role": "assistant",
+                                "content": answer
+                            }
+                        )
+
+                    else:
+                        st.error("Backend Error ❌")
+
+                except Exception as e:
+                    st.error(f"Connection Error: {e}")

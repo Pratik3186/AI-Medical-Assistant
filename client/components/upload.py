@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-BACKEND_URL = "http://127.0.0.1:8000/upload/"
+BACKEND_URL = "https://ai-medical-assistant-1-ut3l.onrender.com/upload/"
 
 
 def render_uploader():
