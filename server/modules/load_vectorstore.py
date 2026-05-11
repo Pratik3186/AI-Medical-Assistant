@@ -101,14 +101,14 @@ def load_vectorstore(uploaded_files):
         # -------------------------
 
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=300,
-            chunk_overlap=30
+            chunk_size=200,
+            chunk_overlap=20
         )
 
         chunks = splitter.split_documents(documents)
 
         # LIMIT chunks for Railway free tier
-        chunks = chunks[:20]
+        chunks = chunks[:5]
 
         texts = [
             chunk.page_content
@@ -141,7 +141,11 @@ def load_vectorstore(uploaded_files):
         # EMBEDDINGS
         # -------------------------
 
+        print("Generating embeddings...")
+
         embeddings = embed_model.embed_documents(texts)
+
+        print("Embeddings generated successfully")
 
         # -------------------------
         # UPSERT TO PINECONE
@@ -164,6 +168,10 @@ def load_vectorstore(uploaded_files):
 
             batch = vectors[i:i + batch_size]
 
+            print("Uploading batch to Pinecone...")
+
             index.upsert(vectors=batch)
+
+            print("Batch uploaded")
 
         print(f"Upload complete: {file.filename}")
