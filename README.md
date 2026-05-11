@@ -24,7 +24,8 @@
 
 # 📸 Demo Screenshot
 
-![AI Medical Assistant UI](https://raw.githubusercontent.com/Pratik3186/AI-Medical-Assistant/main/assets/demo.png)
+<img width="1873" height="971" alt="Screenshot from 2026-05-11 13-30-09" src="https://github.com/user-attachments/assets/0c39aa46-c0fb-4a50-8d9f-a19a417e3e83" />
+
 
 ---
 
