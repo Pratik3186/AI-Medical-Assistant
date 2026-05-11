@@ -1,19 +1,14 @@
-# server/modules/load_vectorstore.py
-
 import os
 import time
 
 from pathlib import Path
 from dotenv import load_dotenv
-from tqdm.auto import tqdm
 
 from pinecone import Pinecone, ServerlessSpec
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from langchain_huggingface import HuggingFaceEmbeddings
-
 
 load_dotenv()
 
@@ -23,6 +18,7 @@ load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+
 if not PINECONE_INDEX_NAME:
     raise ValueError("PINECONE_INDEX_NAME is missing")
 
@@ -47,7 +43,7 @@ existing_indexes = [
     for index in pc.list_indexes()
 ]
 
-# HuggingFace all-MiniLM-L6-v2 → 384 dimensions
+# all-MiniLM-L6-v2 = 384 dimensions
 if PINECONE_INDEX_NAME not in existing_indexes:
 
     pc.create_index(
@@ -81,74 +77,93 @@ embed_model = HuggingFaceEmbeddings(
 
 def load_vectorstore(uploaded_files):
 
-    file_paths = []
-
-    # -------------------------
-    # SAVE FILES
-    # -------------------------
-
     for file in uploaded_files:
+
+        # -------------------------
+        # SAVE FILE
+        # -------------------------
 
         save_path = Path(UPLOAD_DIR) / file.filename
 
         with open(save_path, "wb") as f:
             f.write(file.file.read())
 
-        file_paths.append(str(save_path))
+        # -------------------------
+        # LOAD PDF
+        # -------------------------
 
-    # -------------------------
-    # PROCESS FILES
-    # -------------------------
-
-    for file_path in file_paths:
-
-        loader = PyPDFLoader(file_path)
+        loader = PyPDFLoader(str(save_path))
 
         documents = loader.load()
 
+        # -------------------------
+        # SPLIT DOCUMENTS
+        # -------------------------
+
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50
+            chunk_size=300,
+            chunk_overlap=30
         )
 
         chunks = splitter.split_documents(documents)
+
+        # LIMIT chunks for Railway free tier
+        chunks = chunks[:20]
 
         texts = [
             chunk.page_content
             for chunk in chunks
         ]
 
-        # IMPORTANT
-        metadatas = [
-            {
-                **chunk.metadata,
-                "text": chunk.page_content
-            }
-            for chunk in chunks
-        ]
+        # -------------------------
+        # CREATE METADATA
+        # -------------------------
+
+        metadatas = []
+
+        for chunk in chunks:
+
+            metadatas.append({
+                "source": str(save_path),
+                "text": chunk.page_content[:1000]
+            })
+
+        # -------------------------
+        # IDS
+        # -------------------------
 
         ids = [
-            f"{Path(file_path).stem}-{i}"
+            f"{Path(file.filename).stem}-{i}"
             for i in range(len(chunks))
         ]
 
-        print(f"Embedding {len(texts)} chunks...")
+        # -------------------------
+        # EMBEDDINGS
+        # -------------------------
 
         embeddings = embed_model.embed_documents(texts)
 
-        vectors = list(
-            zip(ids, embeddings, metadatas)
-        )
+        # -------------------------
+        # UPSERT TO PINECONE
+        # -------------------------
 
-        print("Uploading to Pinecone...")
+        vectors = []
 
-        with tqdm(
-            total=len(vectors),
-            desc="Upserting to Pinecone"
-        ) as progress:
+        for i in range(len(ids)):
 
-            index.upsert(vectors=vectors)
+            vectors.append((
+                ids[i],
+                embeddings[i],
+                metadatas[i]
+            ))
 
-            progress.update(len(vectors))
+        # Upload in batches
+        batch_size = 5
 
-        print(f"Upload complete for {file_path}")
+        for i in range(0, len(vectors), batch_size):
+
+            batch = vectors[i:i + batch_size]
+
+            index.upsert(vectors=batch)
+
+        print(f"Upload complete: {file.filename}")
